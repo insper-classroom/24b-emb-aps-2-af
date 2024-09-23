@@ -38,3 +38,38 @@ conectado no equipamento e não recebe mais comandos.
 Para conectar o bluetooth no linux, usar os passos descritos no site:
 
 - https://marcqueiroz.wordpress.com/aventuras-com-arduino/configurando-hc-06-bluetooth-module-device-no-ubuntu-12-04/
+
+JOGO:
+ShellShock.io
+
+Inputs e Outputs:
+- 5 botoẽs (inputs)
+- 1 led (output)
+- 2 joysticks (inputs)
+- sensor imul (input)
+
+Diagrama de blocos:
+ytask1(joystick1)
+xtask(joystick1)
+ytask(joystick2)
+xtask(joystick2)
+uart_task
+led_task
+btn1_task
+btn2_task
+btn3_task
+btn4_task
+btn5_task
+x_semaphore_led
+xQueuBut1
+xQueuBut2
+xQueuBut3
+xQueuBut4
+xQueuBut5
+xQueueJoystick1
+xQueueJoystick2
+btn1_callback
+btn2_callback
+btn3_callback
+btn4_callback
+btn5_callback
