@@ -46,7 +46,7 @@ Inputs e Outputs:
 - 5 botoẽs (inputs)
 - 1 led (output)
 - 2 joysticks (inputs)
-- sensor imul (input)
+- sensor imu (input)
 
 Diagrama de blocos:
 ytask1(joystick1)
