@@ -73,3 +73,9 @@ btn2_callback
 btn3_callback
 btn4_callback
 btn5_callback
+
+![alt text](diagrama-1.png)
+
+
+![alt text](rascunho_controle.jpeg)
+
