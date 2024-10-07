@@ -50,12 +50,12 @@ Inputs e Outputs:
 
 Diagrama de blocos:
 ytask1(joystick1)
-xtask(joystick1)
-ytask(joystick2)
-xtask(joystick2)
+xtask1(joystick1)
+ytask2(joystick2)
+xtask2(joystick2)
 uart_task
-led_task
-btn1_task
+led_task(controle ligado)
+btn1_task(switch button)
 btn2_task
 btn3_task
 btn4_task
