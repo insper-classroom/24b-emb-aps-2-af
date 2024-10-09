@@ -22,18 +22,18 @@
 // Define joystick ADC input pins
 #define JOYSTICK1_X_PIN 26  // ADC0
 #define JOYSTICK1_Y_PIN 27  // ADC1
-#define JOYSTICK2_X_PIN 28  // ADC2
-#define JOYSTICK2_Y_PIN 29  // ADC3
+#define JOYSTICK2_X_PIN 21  // ADC2
+#define JOYSTICK2_Y_PIN 20  // ADC3
 
 // Define button GPIO pins
-#define BTN1_PIN 7   // Switch that turns on LED
-#define BTN2_PIN 8   // Shooting (left mouse button)
-#define BTN3_PIN 9   // Aiming (right mouse button)
-#define BTN4_PIN 10  // Jumping (spacebar)
+#define BTN1_PIN 15   // Switch that turns on LED
+#define BTN2_PIN 14   // Shooting (left mouse button)
+#define BTN3_PIN 13   // Aiming (right mouse button)
+#define BTN4_PIN 12  // Jumping (spacebar)
 #define BTN5_PIN 11  // Grenade ('Q' key)
 
 // Define LED pin (control ligado)
-#define LED_PIN 25
+#define LED_PIN 7
 
 // Structure for controller data
 typedef struct {
@@ -288,7 +288,7 @@ int main() {
     adc_init();
 
     // Create semaphore to protect controller data
-    xSemaphoreControllerData = xSemaphoreCreateMutex();
+    xSemaphoreControllerData = xSemaphoreCreateBinary();
 
     // Create queue for button events
     xQueueBtnEvents = xQueueCreate(10, sizeof(btn_event_t));
