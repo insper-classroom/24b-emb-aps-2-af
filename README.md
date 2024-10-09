@@ -79,3 +79,8 @@ btn5_callback
 
 ![alt text](rascunho_controle.jpeg)
 
+comandos:
+rodar codigo
+rodar coando no terminal: sudo rfcomm connect /dev/rfcomm3 98:D3:71:FE:41:D2
+popup senha: 4242
+sreen: sudo screen /dev/rfcomm3 115200

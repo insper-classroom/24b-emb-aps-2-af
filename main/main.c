@@ -11,7 +11,7 @@
 
 #include "pico/stdlib.h"
 #include <stdio.h>
-#include "hc05.h"
+#include "hc06.h"
 
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
@@ -247,15 +247,16 @@ void btn_task(void *p) {
 // Task to send data over Bluetooth using uint8_t packet
 void hc05_task(void *p) {
     // Initialize UART for HC-05
-    uart_init(hc05_UART_ID, hc05_BAUD_RATE);
-    gpio_set_function(hc05_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(hc05_RX_PIN, GPIO_FUNC_UART);
+    uart_init(HC06_UART_ID, HC06_BAUD_RATE);
+    gpio_set_function(HC06_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(HC06_RX_PIN, GPIO_FUNC_UART);
 
     // Initialize HC-05 module
-    hc05_init("aps2_2D3Y", "4242");
+    //hc06_init("aps2-af", "4242");
 
     controller_data_t data_to_send;
-    uint8_t packet[7]; // Packet size is 7 bytes
+
+    uart_putc_raw(HC06_UART_ID, 'a');
 
     while (1) {
         // Atomically copy controller data
@@ -273,7 +274,8 @@ void hc05_task(void *p) {
         packet[6] = 0xFF;                          // End of Packet
 
         // Send the packet over UART
-        uart_write_blocking(hc05_UART_ID, packet, 7);
+        //uart_putc_raw(HC06_UART_ID, packet[0]);
+        uart_write_blocking(HC06_UART_ID, packet, 7);
 
         vTaskDelay(pdMS_TO_TICKS(50)); // Adjust send rate as needed
     }
