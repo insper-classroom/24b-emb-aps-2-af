@@ -35,14 +35,11 @@
 // Define LED pin (control ligado)
 #define LED_PIN 7
 
-// Structure for controller data
+// Structure for data sent via the queue
 typedef struct {
-    int8_t x1_axis;     // Joystick 1 X-axis value (-127 to +127)
-    int8_t y1_axis;     // Joystick 1 Y-axis value (-127 to +127)
-    int8_t x2_axis;     // Joystick 2 X-axis value (-127 to +127)
-    int8_t y2_axis;     // Joystick 2 Y-axis value (-127 to +127)
-    uint8_t buttons;    // Bitfield representing button states
-} controller_data_t;
+    int type;  // 0=x1_axis, 1=y1_axis, 2=x2_axis, 3=y2_axis, 4=buttons
+    int8_t val;
+} controller_queue_data_t;
 
 // Structure for button events
 typedef struct {
@@ -52,8 +49,8 @@ typedef struct {
 
 // Global variables
 QueueHandle_t xQueueBtnEvents;
-SemaphoreHandle_t xSemaphoreControllerData;
-controller_data_t controller_data;
+QueueHandle_t xQueueAdc;
+SemaphoreHandle_t xSemaphoreLED;
 
 // Function prototypes
 void x_task1(void *p);
@@ -91,10 +88,11 @@ void x_task1(void *p) {
 
         int8_t x_axis = (int8_t)((avg - 2048) * 127 / 2048);
 
-        // Update controller data
-        xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
-        controller_data.x1_axis = x_axis;
-        xSemaphoreGive(xSemaphoreControllerData);
+       // Send data via queue
+        controller_queue_data_t data;
+        data.type = 0;  // x1_axis
+        data.val = x_axis;
+        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -120,10 +118,11 @@ void y_task1(void *p) {
 
         int8_t y_axis = (int8_t)((avg - 2048) * 127 / 2048);
 
-        // Update controller data
-        xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
-        controller_data.y1_axis = y_axis;
-        xSemaphoreGive(xSemaphoreControllerData);
+        // Send data via queue
+        controller_queue_data_t data;
+        data.type = 1;  // y1_axis
+        data.val = y_axis;
+        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -148,11 +147,12 @@ void x_task2(void *p) {
         int avg = sum / WINDOW_SIZE;
 
         int8_t x_axis = (int8_t)((avg - 2048) * 127 / 2048);
-
-        // Update controller data
-        xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
-        controller_data.x2_axis = x_axis;
-        xSemaphoreGive(xSemaphoreControllerData);
+        
+        // Send data via queue
+        controller_queue_data_t data;
+        data.type = 2;  // x2_axis
+        data.val = x_axis;
+        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -178,10 +178,11 @@ void y_task2(void *p) {
 
         int8_t y_axis = (int8_t)((avg - 2048) * 127 / 2048);
 
-        // Update controller data
-        xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
-        controller_data.y2_axis = y_axis;
-        xSemaphoreGive(xSemaphoreControllerData);
+        // Send data via queue
+        controller_queue_data_t data;
+        data.type = 3;  // y2_axis
+        data.val = y_axis;
+        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -203,9 +204,10 @@ void btn_task(void *p) {
     // Initialize LED pin
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0);  // LED initially off
+    gpio_put(LED_PIN, 0);  // LED initially off 
 
     btn_event_t event;
+    uint8_t buttons_state = 0;
 
     while (1) {
         if (xQueueReceive(xQueueBtnEvents, &event, portMAX_DELAY)) {
@@ -223,23 +225,42 @@ void btn_task(void *p) {
             }
 
             if (btn_index != 0xFF) {
-                // Update button bitfield
-                xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
+                // Atualiza o bitfield dos botões
                 if (event.pressed) {
-                    controller_data.buttons |= (1 << btn_index);
-                    // If button 1 is pressed, turn on the LED
-                    if (btn_index == 0) {
-                        gpio_put(LED_PIN, 1); // Turn on LED
-                    }
+                    buttons_state |= (1 << btn_index);
                 } else {
-                    controller_data.buttons &= ~(1 << btn_index);
-                    // If button 1 is released, turn off the LED
-                    if (btn_index == 0) {
-                        gpio_put(LED_PIN, 0); // Turn off LED
-                    }
+                    buttons_state &= ~(1 << btn_index);
                 }
-                xSemaphoreGive(xSemaphoreControllerData);
+
+                // Envia o estado dos botões via fila
+                controller_queue_data_t data;
+                data.type = 4;  // buttons
+                data.val = buttons_state;
+                xQueueSend(xQueueAdc, &data, portMAX_DELAY);
+
+                // Se for o botão 1, sinaliza a led_task via semáforo
+                if (btn_index == 0) {
+                    xSemaphoreGive(xSemaphoreLED);
+                }
             }
+        }
+    }
+}
+
+void led_task(void *p) {
+    // Inicializa o pino do LED
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 0);  // LED inicialmente apagado
+
+    bool led_on = false;
+
+    while (1) {
+        // Aguarda sinalização do semáforo
+        if (xSemaphoreTake(xSemaphoreLED, portMAX_DELAY) == pdTRUE) {
+            // Alterna o estado do LED
+            led_on = !led_on;
+            gpio_put(LED_PIN, led_on ? 1 : 0);
         }
     }
 }
@@ -254,32 +275,34 @@ void hc05_task(void *p) {
     // Initialize HC-05 module
     //hc06_init("aps2-af", "4242");
 
-    controller_data_t data_to_send;
+    controller_queue_data_t received_data;
 
-    uart_putc_raw(HC06_UART_ID, 'a');
+    //uart_putc_raw(HC06_UART_ID, 'a');
 
-    while (1) {
-        // Atomically copy controller data
-        xSemaphoreTake(xSemaphoreControllerData, portMAX_DELAY);
-        data_to_send = controller_data;
-        xSemaphoreGive(xSemaphoreControllerData);
+     while (1) {
+        // Recebe dados da fila
+        if (xQueueReceive(xQueueAdc, &received_data, portMAX_DELAY)) {
+            uint8_t packet[7];
+            packet[0] = 0xAA; // Byte de cabeçalho
+            if (received_data.type == 0) {
+                packet[1] = (uint8_t)received_data.val;
+            } else if (received_data.type == 1) {
+                packet[2] = (uint8_t)received_data.val;
+            } else if (received_data.type == 2) {
+                packet[3] = (uint8_t)received_data.val;
+            } else if (received_data.type == 3) {
+                packet[4] = (uint8_t)received_data.val;
+            } else if (received_data.type == 4) {
+                packet[5] = received_data.val;
+            }
+            packet[6] = 0xFF; // Fim do pacote
 
-        // Assemble the packet
-        packet[0] = 0xAA; // Header byte
-        packet[1] = (uint8_t)data_to_send.x1_axis; // x1_axis
-        packet[2] = (uint8_t)data_to_send.y1_axis; // y1_axis
-        packet[3] = (uint8_t)data_to_send.x2_axis; // x2_axis
-        packet[4] = (uint8_t)data_to_send.y2_axis; // y2_axis
-        packet[5] = data_to_send.buttons;          // buttons
-        packet[6] = 0xFF;                          // End of Packet
-
-        // Send the packet over UART
-        //uart_putc_raw(HC06_UART_ID, packet[0]);
-        uart_write_blocking(HC06_UART_ID, packet, 7);
-
-        vTaskDelay(pdMS_TO_TICKS(50)); // Adjust send rate as needed
+            // Envia o pacote via UART
+            uart_write_blocking(HC06_UART_ID, packet, 7);
+        }
     }
 }
+
 
 int main() {
     stdio_init_all();
@@ -290,17 +313,11 @@ int main() {
     adc_init();
 
     // Create semaphore to protect controller data
-    xSemaphoreControllerData = xSemaphoreCreateBinary();
+    xSemaphoreLED = xSemaphoreCreateBinary();
+    xQueueAdc = xQueueCreate(32, sizeof(controller_queue_data_t));
 
     // Create queue for button events
     xQueueBtnEvents = xQueueCreate(10, sizeof(btn_event_t));
-
-    // Initialize controller data
-    controller_data.x1_axis = 0;
-    controller_data.y1_axis = 0;
-    controller_data.x2_axis = 0;
-    controller_data.y2_axis = 0;
-    controller_data.buttons = 0;
 
     // Create tasks
     xTaskCreate(hc05_task, "UART_Task", 4096, NULL, 1, NULL);
@@ -309,6 +326,7 @@ int main() {
     xTaskCreate(x_task2, "X_Task2", 1024, NULL, 1, NULL);
     xTaskCreate(y_task2, "Y_Task2", 1024, NULL, 1, NULL);
     xTaskCreate(btn_task, "Button_Task", 1024, NULL, 1, NULL);
+    xTaskCreate(led_task, "LED_Task", 1024, NULL, 1, NULL);
 
     // Start the FreeRTOS scheduler
     vTaskStartScheduler();
