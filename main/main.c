@@ -196,9 +196,15 @@ void btn_task(void *p) {
         gpio_init(button_pins[i]);
         gpio_set_dir(button_pins[i], GPIO_IN);
         gpio_pull_up(button_pins[i]);
-
-        // Configure GPIO interrupts for buttons
-        gpio_set_irq_enabled_with_callback(button_pins[i], GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &btn_callback);
+        if (i == 0) {
+            gpio_set_irq_enabled_with_callback(button_pins[i], GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true, &btn_callback);    
+        }
+        else{
+            // Configure GPIO interrupts for buttons
+            gpio_set_irq_enabled(button_pins[i],
+                        GPIO_IRQ_EDGE_FALL,
+                        true);
+        }
     }
 
     // Initialize LED pin
@@ -226,16 +232,16 @@ void btn_task(void *p) {
 
             if (btn_index != 0xFF) {
                 // Atualiza o bitfield dos botões
-                if (event.pressed) {
-                    buttons_state |= (1 << btn_index);
-                } else {
-                    buttons_state &= ~(1 << btn_index);
-                }
+                // if (event.pressed) {
+                //     buttons_state |= (1 << btn_index);
+                // } else {
+                //     buttons_state &= ~(1 << btn_index);
+                // }
 
                 // Envia o estado dos botões via fila
                 controller_queue_data_t data;
                 data.type = 4;  // buttons
-                data.val = buttons_state;
+                data.val = btn_index;
                 xQueueSend(xQueueAdc, &data, portMAX_DELAY);
 
                 // Se for o botão 1, sinaliza a led_task via semáforo
@@ -296,9 +302,9 @@ void hc05_task(void *p) {
                 packet[5] = received_data.val;
             }
             packet[6] = 0xFF; // Fim do pacote
-
             // Envia o pacote via UART
             uart_write_blocking(HC06_UART_ID, packet, 7);
+            vTaskDelay(pdMS_TO_TICKS(20));
         }
     }
 }
@@ -306,8 +312,6 @@ void hc05_task(void *p) {
 
 int main() {
     stdio_init_all();
-
-    printf("Starting Video Game Controller...\n");
 
     // Initialize ADC
     adc_init();

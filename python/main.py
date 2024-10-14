@@ -81,25 +81,29 @@ def handle_buttons(buttons):
     # Button 5 (bit 4): Grenade ('Q' key)
 
     # Shooting (left mouse button)
-    if buttons & 0x02:
+    if buttons == 2:
+        print("Shooting")
         device.emit(uinput.BTN_LEFT, 1)
     else:
         device.emit(uinput.BTN_LEFT, 0)
 
     # Aiming (right mouse button)
-    if buttons & 0x04:
+    if buttons == 3:
+        print("Aiming")
         device.emit(uinput.BTN_RIGHT, 1)
     else:
         device.emit(uinput.BTN_RIGHT, 0)
 
     # Jumping (spacebar)
-    if buttons & 0x08:
+    if buttons == 4:
+        print("Jumping")
         device.emit(uinput.KEY_SPACE, 1)
     else:
         device.emit(uinput.KEY_SPACE, 0)
 
     # Grenade ('Q' key)
-    if buttons & 0x10:
+    if buttons == 1:
+        print("Grenade")
         device.emit(uinput.KEY_Q, 1)
     else:
         device.emit(uinput.KEY_Q, 0)
@@ -119,7 +123,7 @@ def main():
                     x1_axis, y1_axis, x2_axis, y2_axis, buttons = parse_packet(data_bytes)
 
                     # Debug print
-                    # print(f"X1: {x1_axis}, Y1: {y1_axis}, X2: {x2_axis}, Y2: {y2_axis}, Buttons: {buttons}")
+                    print(f"X1: {x1_axis}, Y1: {y1_axis}, X2: {x2_axis}, Y2: {y2_axis}, Buttons: {buttons}")
 
                     # Handle joystick 1 (movement)
                     handle_joystick1(x1_axis, y1_axis)
