@@ -3,148 +3,136 @@ import uinput
 import time
 import struct
 
-# Adjust the serial port and baud rate to match your HC-05 module
-ser = serial.Serial('/dev/rfcomm0', 9600)  # Use '/dev/rfcomm0' for Bluetooth serial
-# ser = serial.Serial('/dev/ttyUSB0', 9600)  # For USB serial connections
+# Ajuste a porta serial e a taxa de baud para corresponder ao seu módulo HC-06
+ser = serial.Serial('/dev/rfcomm0', 9600)  # Use '/dev/rfcomm0' para serial Bluetooth
 
-# Create a uinput device for mouse, keyboard, and buttons
+# Cria um dispositivo uinput para teclado e entradas do joystick
 device = uinput.Device([
-    uinput.BTN_LEFT,
-    uinput.BTN_RIGHT,
-    uinput.REL_X,
-    uinput.REL_Y,
+    uinput.KEY_Z,
+    uinput.KEY_C,
+    uinput.KEY_SPACE,
     uinput.KEY_W,
     uinput.KEY_A,
     uinput.KEY_S,
     uinput.KEY_D,
-    uinput.KEY_SPACE,
-    uinput.KEY_Q,
 ])
 
+prev_buttons_state = 0  # Estado inicial dos botões
+
 def parse_packet(packet):
-    # Unpack the packet data
-    # '>bbbbB' means:
+    # Desempacota os dados do pacote
+    # '>bbB' significa:
     #   >     : Big-endian
-    #   bbbb  : Four signed chars (int8_t)
-    #   B     : One unsigned char (uint8_t)
-    x1_axis, y1_axis, x2_axis, y2_axis, buttons = struct.unpack('>bbbbB', packet)
-    return x1_axis, y1_axis, x2_axis, y2_axis, buttons
+    #   b     : Signed char (int8_t) para x1_axis
+    #   b     : Signed char (int8_t) para y1_axis
+    #   B     : Unsigned char (uint8_t) para buttons
+    x1_axis, y1_axis, buttons = struct.unpack('>bbB', packet)
+    return x1_axis, y1_axis, buttons
 
 def handle_joystick1(x, y):
-    # Map joystick 1 to WASD keys
-    # Threshold to determine if joystick is moved significantly
-    threshold = 20  # Adjust as necessary
+    # Mapeia o joystick 1 para as teclas WASD
+    # Threshold para determinar se o joystick foi movido significativamente
+    threshold = 20  # Ajuste conforme necessário
 
-    # Movement flags
+    # Flags de movimento
     forward = False
     backward = False
     left = False
     right = False
 
     if y < -threshold:
-        # Joystick pushed forward
+        # Joystick empurrado para frente
         forward = True
     elif y > threshold:
-        # Joystick pulled backward
+        # Joystick puxado para trás
         backward = True
 
     if x < -threshold:
-        # Joystick moved left
+        # Joystick movido para a esquerda
         left = True
     elif x > threshold:
-        # Joystick moved right
+        # Joystick movido para a direita
         right = True
 
-    # Emit key events
-    # Forward (W)
-    device.emit(uinput.KEY_W, 1 if forward else 0)
-    # Backward (S)
-    device.emit(uinput.KEY_S, 1 if backward else 0)
-    # Left (A)
-    device.emit(uinput.KEY_A, 1 if left else 0)
-    # Right (D)
-    device.emit(uinput.KEY_D, 1 if right else 0)
+    # Emite eventos de tecla
+    # Para frente (W)
+    device.emit(uinput.KEY_W, int(forward))
+    # Para trás (S)
+    device.emit(uinput.KEY_S, int(backward))
+    # Esquerda (A)
+    device.emit(uinput.KEY_A, int(left))
+    # Direita (D)
+    device.emit(uinput.KEY_D, int(right))
 
-def handle_joystick2(x, y):
-    # Use joystick 2 to move the mouse
-    # Adjust sensitivity as necessary
-    sensitivity = 1
-    device.emit(uinput.REL_X, x * sensitivity, syn=False)
-    device.emit(uinput.REL_Y, y * sensitivity)
+def handle_buttons(buttons_state):
+    global prev_buttons_state
 
-def handle_buttons(buttons):
-    # Map buttons as per the specification:
-    # Button 1 (bit 0): Switch that turns on LED (handled in main.c)
-    # Button 2 (bit 1): Shooting (left mouse button)
-    # Button 3 (bit 2): Aiming (right mouse button)
-    # Button 4 (bit 3): Jumping (spacebar)
-    # Button 5 (bit 4): Grenade ('Q' key)
+    # Botões representados como bits em buttons_state
+    # Bit 0: Botão 0 (LED control, ignorado)
+    # Bit 1: Botão 1 ('z' key)
+    # Bit 2: Botão 2 ('c' key)
+    # Bit 3: Botão 3 (Spacebar key)
 
-    # Shooting (left mouse button)
-    if buttons == 2:
-        print("Shooting")
-        device.emit(uinput.BTN_LEFT, 1)
-    else:
-        device.emit(uinput.BTN_LEFT, 0)
+    # Mapeamento de bits para códigos de tecla
+    button_key_map = {
+        1: uinput.KEY_Z,
+        2: uinput.KEY_C,
+        3: uinput.KEY_SPACE,
+    }
 
-    # Aiming (right mouse button)
-    if buttons == 3:
-        print("Aiming")
-        device.emit(uinput.BTN_RIGHT, 1)
-    else:
-        device.emit(uinput.BTN_RIGHT, 0)
+    # Para cada botão, verifica se houve mudança de estado
+    for btn_index in [1, 2, 3]:
+        mask = 1 << btn_index
+        is_pressed = (buttons_state & mask) != 0
+        was_pressed = (prev_buttons_state & mask) != 0
 
-    # Jumping (spacebar)
-    if buttons == 4:
-        print("Jumping")
-        device.emit(uinput.KEY_SPACE, 1)
-    else:
-        device.emit(uinput.KEY_SPACE, 0)
+        if is_pressed and not was_pressed:
+            # Botão foi pressionado
+            print(f"Button {btn_index} pressed")
+            device.emit(button_key_map[btn_index], 1)  # Pressiona a tecla
+            device.emit(button_key_map[btn_index], 0)  # Solta a tecla (simula clique)
+        elif not is_pressed and was_pressed:
+            # Botão foi solto (nenhuma ação necessária para clique único)
+            pass
 
-    # Grenade ('Q' key)
-    if buttons == 1:
-        print("Grenade")
-        device.emit(uinput.KEY_Q, 1)
-    else:
-        device.emit(uinput.KEY_Q, 0)
+    # Atualiza o estado anterior dos botões
+    prev_buttons_state = buttons_state
 
 def main():
+    global prev_buttons_state
     try:
         while True:
-            # Wait for the header byte (0xAA)
+            # Aguarda o byte de cabeçalho (0xAA)
             header = ser.read(1)
             if header == b'\xAA':
-                # Read the next 5 bytes (data)
-                data_bytes = ser.read(5)
-                # Read the end-of-packet byte (0xFF)
+                # Lê os próximos 3 bytes (dados)
+                data_bytes = ser.read(3)
+                # Lê o byte de fim de pacote (0xFF)
                 eop = ser.read(1)
                 if eop == b'\xFF':
-                    # Parse the packet
-                    x1_axis, y1_axis, x2_axis, y2_axis, buttons = parse_packet(data_bytes)
+                    # Desempacota o pacote
+                    x1_axis, y1_axis, buttons = parse_packet(data_bytes)
 
                     # Debug print
-                    print(f"X1: {x1_axis}, Y1: {y1_axis}, X2: {x2_axis}, Y2: {y2_axis}, Buttons: {buttons}")
+                    print(f"X1: {x1_axis}, Y1: {y1_axis}, Buttons: {buttons}")
 
-                    # Handle joystick 1 (movement)
+                    # Trata o joystick 1 (movimento)
                     handle_joystick1(x1_axis, y1_axis)
 
-                    # Handle joystick 2 (camera/mouse)
-                    handle_joystick2(x2_axis, y2_axis)
-
-                    # Handle buttons
+                    # Trata os botões
                     handle_buttons(buttons)
 
                 else:
-                    # Invalid end-of-packet byte, discard and continue
+                    # Byte de fim de pacote inválido, descarta e continua
                     continue
             else:
-                # Discard bytes until we find the header byte
+                # Descarta bytes até encontrar o byte de cabeçalho
                 continue
 
     except KeyboardInterrupt:
-        print("Program terminated by user")
+        print("Programa interrompido pelo usuário")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Ocorreu um erro: {e}")
     finally:
         ser.close()
 
