@@ -95,9 +95,10 @@ void x_task1(void *p) {
         controller_queue_data_t data;
         data.type = 0;  // x1_axis
         data.val = x_axis;
-        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
-
-        vTaskDelay(pdMS_TO_TICKS(20));
+        if(data.val < -80 || data.val > 80){
+            xQueueSend(xQueueAdc, &data, portMAX_DELAY);
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
     }
 }
 
@@ -125,9 +126,11 @@ void y_task1(void *p) {
         controller_queue_data_t data;
         data.type = 1;  // y1_axis
         data.val = y_axis;
-        xQueueSend(xQueueAdc, &data, portMAX_DELAY);
+        if(data.val < -80 || data.val > 80){
+            xQueueSend(xQueueAdc, &data, portMAX_DELAY);
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
