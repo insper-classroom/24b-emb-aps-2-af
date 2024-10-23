@@ -32,7 +32,7 @@ def parse_packet(packet):
 def handle_joystick1(x, y):
     # Mapeia o joystick 1 para as teclas WASD
     # Threshold para determinar se o joystick foi movido significativamente
-    threshold = 20  # Ajuste conforme necessário
+    threshold = 90  # Ajuste conforme necessário
 
     # Flags de movimento
     forward = False
