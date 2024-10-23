@@ -79,7 +79,7 @@ void x_task1(void *p) {
     int window[WINDOW_SIZE] = {0};  // Janela de média móvel
     int sum = 0;
     int index = 0;
-
+    int data_antigo = 5000;
     while (1) {
         adc_select_input(0); // ADC0
         int val = adc_read();
@@ -95,9 +95,10 @@ void x_task1(void *p) {
         controller_queue_data_t data;
         data.type = 0;  // x1_axis
         data.val = x_axis;
-        if(data.val < -80 || data.val > 80){
+        if ((data.val < -80 || data.val > 80) &&(data.val != data_antigo)) {
             xQueueSend(xQueueAdc, &data, portMAX_DELAY);
-            vTaskDelay(pdMS_TO_TICKS(20));
+            data_antigo = data.val;
+            vTaskDelay(20);
         }
     }
 }
@@ -110,7 +111,7 @@ void y_task1(void *p) {
     int window[WINDOW_SIZE] = {0};  // Janela de média móvel
     int sum = 0;
     int index = 0;
-
+    int data_antigo = 5000;
     while (1) {
         adc_select_input(1); // ADC1
         int val = adc_read();
@@ -126,9 +127,10 @@ void y_task1(void *p) {
         controller_queue_data_t data;
         data.type = 1;  // y1_axis
         data.val = y_axis;
-        if(data.val < -80 || data.val > 80){
+        if ((data.val < -80 || data.val > 80) &&(data.val != data_antigo)) {
             xQueueSend(xQueueAdc, &data, portMAX_DELAY);
-            vTaskDelay(pdMS_TO_TICKS(20));
+            data_antigo = data.val;
+            vTaskDelay(20);
         }
 
     }
